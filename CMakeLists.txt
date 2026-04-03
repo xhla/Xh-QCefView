@@ -6,6 +6,14 @@ project(QCefView)
 
 set(CMAKE_FOLDER "QCefView")
 
+configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cefviewcore/include/CefVersion.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/CefVersion.h"
+        COPYONLY
+)
+
+set(QT_SDK_DIR,"C:/Qt/6.11.0/msvc2022_64")
+set(CEF_SDK_VERSION "142.0.15+g6dfdb28+chromium-142.0.7444.176")
 # arguments:
 # CEF_SDK_VERSION:
 # - specify the CEF version to be used,
@@ -19,7 +27,7 @@ set(CMAKE_FOLDER "QCefView")
 # options
 option(BUILD_DEMO
   "Build the demo"
-  OFF
+  ON
 )
 option(BUILD_STATIC
   "Build QCefView as static library"
@@ -165,7 +173,7 @@ set(Qt_VERSION ${Qt${QT_VERSION_MAJOR}Core_VERSION})
 
 # ##############################################################
 # thirdparty CefViewCore
-add_subdirectory(thirdparty)
+#add_subdirectory(thirdparty)
 
 if(OS_MACOS)
   # detect minimum deployment target by Qt
@@ -202,6 +210,29 @@ if(OS_MACOS)
     set(CMAKE_OSX_DEPLOYMENT_TARGET ${QT_MIN_DEPLOYMENT_TARGET})
   endif()
 endif()
+
+# ========== MSVC 编译设置 ==========
+if (MSVC)
+    # 设置 UTF-8 编码
+    add_compile_options(/utf-8)
+
+    # 禁用特定警告
+    add_compile_options(
+            /wd4819    # 编码警告
+            /wd4996    # 弃用警告
+            /wd4100    # 未引用的形参
+            /wd4127    # 条件表达式是常量
+            /wd4244    # 类型转换可能丢失数据
+            /wd4456    # 局部变量声明隐藏了之前的声明
+    )
+
+    # 使用 /W3 而不是 /W4（降低警告级别）
+    add_compile_options(/W3)
+endif ()
+
+
+# CefViewCore
+add_subdirectory(cefviewcore)
 
 # Config QCefView target
 # ##############################################################
