@@ -241,6 +241,7 @@ add_subdirectory(src)
 # Config the Demo project
 # ##############################################################
 if(BUILD_DEMO)
+  add_subdirectory(example/webbrowse)
   add_subdirectory(example/QCefViewTest)
 endif()
 

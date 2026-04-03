@@ -49,7 +49,6 @@ MainWindow::MainWindow(QWidget* parent)
 
   // add a local folder to URL map (global)
   QCefContext::instance()->addLocalFolderResource(webResourceDir, URL_ROOT);
-
   createLeftCefView();
   createRightCefView();
 }
