@@ -48,7 +48,7 @@ main(int argc, char* argv[])
   // set Built-in scheme name (default value is CefView)
   config.setBuiltinSchemeName("CefView");
   // port for remote debugging (default is 0 and means to disable remote debugging)
-  config.setRemoteDebuggingPort(9000);
+  config.setRemoteDebuggingPort(7777);
   // set background color for all browsers
   // (QCefSetting.setBackgroundColor will overwrite this value for specified browser instance)
   // config.setBackgroundColor(Qt::lightGray);

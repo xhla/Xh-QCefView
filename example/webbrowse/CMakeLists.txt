@@ -62,7 +62,10 @@ if (OS_WINDOWS)
             PROPERTIES
             VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
     )
-
+        # Windows平台特定设置
+        if(WIN32)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+        endif()
     add_custom_command(TARGET ${PROJECT_NAME}
 
             POST_BUILD
@@ -74,6 +77,12 @@ if (OS_WINDOWS)
 
             $<TARGET_FILE_DIR:${PROJECT_NAME}>
 
+
+            # Copy the webres directory to output folder
+            #COMMAND ${CMAKE_COMMAND} -E copy_directory
+            #${CMAKE_CURRENT_BINARY_DIR}/webres
+
+            #$<TARGET_FILE_DIR:${PROJECT_NAME}>/webres
 
             # Deploy the Qt Application
             COMMAND ${DEPLOYQT_EXECUTABLE}

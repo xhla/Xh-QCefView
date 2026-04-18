@@ -2,7 +2,9 @@
 #include <QCefContext.h>
 #include <QCefView.h> // QCefView 核心头文件
 #include <QDebug>
+#include <QShortcut>
 #include <QUrl>
+#include <qmessagebox.h>
 
 /**
  * @brief 构造函数
@@ -78,17 +80,31 @@ MainWindow::setupUI()
   // 将控件添加到工具栏布局
   m_toolbarLayout->addWidget(m_urlEdit, 1); // 1 表示拉伸因子，让输入框占据主要空间
   m_toolbarLayout->addWidget(m_loadButton);
- 
+
   // 将工具栏布局添加到主布局
   m_mainLayout->addLayout(m_toolbarLayout);
 
-   auto ab= QCefContext::instance()->cefConfig() ;
   // Build settings for per QCefView
   QCefSetting setting;
   setting.setOffScreenRenderingEnabled(true);
   setting.setHardwareAccelerationEnabled(false);
   setting.setWindowlessFrameRate(60);
-  m_cefView = new QCefView("https://www.baidu.com", &setting, this);
+  // 获取网页文件路径
+  QString webPath = QCoreApplication::applicationDirPath() + "/webres/index.html";
+  QUrl webUrl = QUrl::fromLocalFile(webPath);
+  // m_cefView = new QCefView("https://www.baidu.com", &setting, this);
+  m_cefView = new QCefView(webUrl.toString(), &setting, this);
+  // 连接消息接收信号
+  connect(m_cefView, &QCefView::invokeMethod, this, &MainWindow::onInvokeMethodNotify);
+  connect(m_cefView, &QCefView::cefQueryRequest, this, &MainWindow::onQCefQueryRequest);
+  // 1. 创建一个 QShortcut，绑定 F12 键
+  m_shortcut = new QShortcut(QKeySequence(Qt::Key_F12), this);
+
+  // 2. 连接快捷键的 activated 信号
+  connect(m_shortcut, &QShortcut::activated, [this]() {
+    // 调用 QCefView 的调试接口 (假设你的版本支持)
+    m_cefView->showDevTools();
+  });
 
   // 将 QCefView 添加到主布局（占据剩余所有空间）
   m_mainLayout->addWidget(m_cefView, 1);
@@ -108,6 +124,26 @@ MainWindow::setupConnections()
 
   // 连接输入框的回车信号（按回车键时触发加载）
   connect(m_urlEdit, &QLineEdit::returnPressed, this, &MainWindow::onLoadButtonClicked);
+}
+
+void
+MainWindow::onQCefQueryRequest(const QCefBrowserId& browserId, const QCefFrameId& frameId, const QCefQuery& query)
+{
+ qDebug() << "MainWindow::onQCefQueryRequest:" << query.request() << "from browserId:" << browserId << "frameId:" << frameId;
+  QMessageBox::information(this, "onQCefQueryRequest", "请求: " + query.request());
+ query.setResponseResult(true, "Query received and processed successfully");
+}
+
+void
+MainWindow::onInvokeMethodNotify(const QCefBrowserId& browserId,
+                                 const QCefFrameId& frameId,
+                                 const QString& method,
+                                 const QVariantList& arguments)
+{
+   
+// 信息提示框
+  QMessageBox::information(this, "onInvokeMethodNotify", "方法名: " + method + "\n参数: " + QVariant(arguments).toString());
+   qDebug() << "MainWindow::onInvokeMethodNotify:" << method << arguments;
 }
 
 /**

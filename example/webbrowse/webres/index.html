@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QCefView 消息交互示例</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>QCefView 消息交互示例</h1>
+            <p class="subtitle">点击下方按钮向C++发送JSON格式指令消息</p>
+        </div>
+
+        <div class="button-group">
+            <button class="btn btn-primary" data-command="open_file" data-type="info">
+                📁 打开文件
+            </button>
+            <button class="btn btn-success" data-command="save_data" data-type="info">
+                💾 保存数据
+            </button>
+            <button class="btn btn-warning" data-command="delete_item" data-type="warning">
+                🗑️ 删除项目
+            </button>
+            <button class="btn btn-danger" data-command="exit_app" data-type="warning">
+                ⚠️ 退出应用
+            </button>
+            <button class="btn btn-info" data-command="refresh" data-type="info">
+                🔄 刷新页面
+            </button>
+            <button class="btn btn-secondary" data-command="settings" data-type="info">
+                ⚙️ 系统设置
+            </button>
+        </div>
+
+        <div class="message-panel">
+            <div class="panel-header">
+                <h3>📨 消息日志</h3>
+                <button class="clear-btn" id="clearLogBtn">清空日志</button>
+            </div>
+            <div class="log-container" id="logContainer">
+                <div class="log-entry system">系统就绪，等待指令...</div>
+            </div>
+        </div>
+
+        <div class="status-bar">
+            <span id="statusText">● 已连接</span>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * QCefView消息交互模块
+         * 处理与C++端的通信
+         */
+        
+        // 获取DOM元素
+        const logContainer = document.getElementById('logContainer');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+        const statusText = document.getElementById('statusText');
+        
+        /**
+         * 添加日志条目到消息面板
+         * @param {string} message - 日志消息
+         * @param {string} type - 日志类型 (info, warning, error, success)
+         */
+        function addLogEntry(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+            
+            logContainer.appendChild(entry);
+            entry.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            
+            // 限制日志条目数量，避免过多
+            while (logContainer.children.length > 100) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }
+        
+        /**
+         * 清空所有日志
+         */
+        function clearLog() {
+            logContainer.innerHTML = '';
+            addLogEntry('日志已清空', 'system');
+        }
+        
+        /**
+         * 向C++端发送指令消息
+         * @param {string} command - 指令名称
+         * @param {string} type - 消息类型
+         * @param {string} data - 附加数据
+         */
+        function sendCommandToCpp(command, type = 'info', data = '') {
+            // 构建JSON格式消息
+            const message = {
+                command: command,
+                type: type,
+                data: data,
+                timestamp: new Date().toISOString()
+            };
+            
+            const jsonMessage = JSON.stringify(message);
+            
+            // 添加本地日志
+            addLogEntry(`📤 发送指令: ${command} (类型: ${type})`, 'info');
+            
+            // 检查CallBridge是否可用
+            if (typeof window.CallBridge !== 'undefined' && window.CallBridge.invoke) {
+                try {
+                    // 调用C++的invokeMethod方法，传递JSON字符串
+                    window.CallBridge.invoke(command, jsonMessage);
+                    addLogEntry(`✅ 指令已发送至C++`, 'success');
+                } catch (error) {
+                    addLogEntry(`❌ 发送失败: ${error.message}`, 'error');
+                    updateStatus('连接错误', false);
+                }
+            } else {
+                addLogEntry(`⚠️ CallBridge不可用，请确保在QCefView环境中运行`, 'warning');
+                updateStatus('未连接', false);
+            }
+        }
+        
+        /**
+         * 更新连接状态显示
+         * @param {string} text - 状态文本
+         * @param {boolean} connected - 是否已连接
+         */
+        function updateStatus(text, connected = true) {
+            statusText.innerHTML = connected ? `● ${text}` : `○ ${text}`;
+            statusText.style.color = connected ? '#4caf50' : '#f44336';
+        }
+        
+        /**
+         * 测试C++连接
+         */
+        function testConnection() {
+            if (typeof window.CallBridge !== 'undefined' && window.CallBridge.invoke) {
+                try {
+                    window.CallBridge.invoke("ping");
+                    addLogEntry('🔍 发送连接测试 (ping)', 'info');
+                    updateStatus('已连接', true);
+                } catch (error) {
+                    addLogEntry(`❌ 连接测试失败: ${error.message}`, 'error');
+                    updateStatus('连接错误', false);
+                }
+            } else {
+                addLogEntry('⚠️ CallBridge未就绪，无法测试连接', 'warning');
+                updateStatus('未连接', false);
+            }
+        }
+        
+        /**
+         * 初始化页面事件监听
+         */
+        function initEventListeners() {
+            // 为所有按钮添加点击事件
+            const buttons = document.querySelectorAll('.btn');
+            buttons.forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const command = button.dataset.command;
+                    const type = button.dataset.type || 'info';
+                    
+                    // 根据按钮类型生成不同的附加数据
+                    let data = '';
+                    switch (command) {
+                        case 'open_file':
+                            data = '用户选择打开文件对话框';
+                            break;
+                        case 'save_data':
+                            data = '当前数据已准备保存';
+                            break;
+                        case 'delete_item':
+                            data = '确认删除操作';
+                            break;
+                        case 'exit_app':
+                            data = '请求退出应用程序';
+                            break;
+                        case 'refresh':
+                            data = '请求刷新视图';
+                            break;
+                        case 'settings':
+                            data = '打开设置面板';
+                            break;
+                        default:
+                            data = '无附加数据';
+                    }
+                    
+                    sendCommandToCpp(command, type, data);
+                });
+            });
+            
+            // 清空日志按钮
+            clearLogBtn.addEventListener('click', clearLog);
+            
+            // 双击状态栏测试连接
+            statusText.addEventListener('dblclick', testConnection);
+        }
+        
+        /**
+         * 监听C++端发送的事件
+         */
+        function setupCppEventListeners() {
+            if (typeof window.CallBridge !== 'undefined') {
+                // 监听来自C++的消息
+                window.CallBridge.addEventListener("webMessageNotify", function(event) {
+                    const message = event.message;
+                    addLogEntry(`📥 收到C++消息: ${message}`, 'info');
+                });
+                
+                addLogEntry('🔌 CallBridge事件监听已建立', 'success');
+                updateStatus('已连接', true);
+            } else {
+                addLogEntry('⚠️ CallBridge未找到，将在连接后自动初始化', 'warning');
+                // 延迟重试
+                setTimeout(setupCppEventListeners, 500);
+            }
+        }
+        
+        /**
+         * 检查CallBridge是否就绪
+         */
+        function checkCallBridge() {
+            if (typeof window.CallBridge !== 'undefined') {
+                setupCppEventListeners();
+                testConnection();
+                return true;
+            }
+            return false;
+        }
+        
+        /**
+         * 等待CallBridge就绪
+         */
+        function waitForCallBridge() {
+            if (checkCallBridge()) {
+                return;
+            }
+            
+            let attempts = 0;
+            const maxAttempts = 50;
+            const interval = setInterval(() => {
+                attempts++;
+                if (checkCallBridge()) {
+                    clearInterval(interval);
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(interval);
+                    addLogEntry('❌ CallBridge初始化超时，请检查运行环境', 'error');
+                    updateStatus('连接超时', false);
+                }
+            }, 200);
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            addLogEntry('🚀 页面加载完成，初始化中...', 'system');
+            initEventListeners();
+            waitForCallBridge();
+        });
+        
+        // 页面卸载前清理
+        window.addEventListener('beforeunload', () => {
+            addLogEntry('页面正在卸载...', 'system');
+        });
+    </script>
+</body>
+</html>
